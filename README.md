@@ -2,7 +2,7 @@
 
 Zig module to flush console ascii line graphs ╭┈╯
 
-Crude derivation of the [asciigraph](https://github.com/kroitor/asciichart) implementations in zig
+Crude derivation of the [asciichart](https://github.com/kroitor/asciichart) implementations in zig
 
 ## Installation
 
@@ -80,11 +80,11 @@ zig build sine
 
 ## Todos
 
-Whatever options shown in [asciigraph](https://github.com/kroitor/asciichart)
+Whatever options shown in [asciichart](https://github.com/kroitor/asciichart)
 
 ## 🤝 Attribution
 
-The idea of this zig module taken from this [asciichart](https://github.com/guptarohit/asciigraph) including the Plot logic.
+The idea of this zig module taken from this [asciigraph](https://github.com/guptarohit/asciigraph) including the Plot logic.
 
 ## 📄 License
 
