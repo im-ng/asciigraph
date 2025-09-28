@@ -6,9 +6,9 @@ pub const util = @import("utils.zig");
 const math = @import("std").math;
 pub const ColorStruct = colors.AnsiColor;
 
-var stdout_buffer: [1024]u8 = undefined;
-var stdout_writer = std.fs.File.stdout().writer(&stdout_buffer);
-const stdout = &stdout_writer.interface;
+const EscapeSequence = struct {
+    const reset = "\x1B[2J\x1B[H\x1B[?25l";
+};
 
 const cell = struct {
     text: []const u8,
@@ -69,7 +69,7 @@ pub fn prepareSineWave(index: usize) f64 {
     return (15 * (std.math.sin(_index * ((std.math.pi * 4) / 120.0))));
 }
 
-pub fn PlotGraph(allocator: std.mem.Allocator, data: [][]f64, configs: options.config) !void {
+pub fn PlotGraph(allocator: std.mem.Allocator, out: *std.Io.Writer, data: [][]f64, configs: options.config) !void {
     var logMaximum: f64 = undefined;
     var default = configs;
 
@@ -150,19 +150,20 @@ pub fn PlotGraph(allocator: std.mem.Allocator, data: [][]f64, configs: options.c
 
     // defaults
     var charBuf: []u8 = undefined;
-    charBuf = try allocator.alloc(u8, 10);
+    charBuf = try allocator.alloc(u8, 50);
     const charMax = try std.fmt.bufPrint(charBuf, "{d:.[1]}", .{ maximum, precision });
     const charMin = try std.fmt.bufPrint(charBuf, "{d:.[1]}", .{ minimum, precision });
 
-    const maxCharLength = @as(i8, @intCast(charMax.len));
-    const minCharLength = @as(i8, @intCast(charMin.len));
+    const maxCharLength = @as(usize, @intCast(charMax.len));
+    const minCharLength = @as(usize, @intCast(charMin.len));
 
     // maxWidth
-    var maxWidth: i8 = 0;
+    var maxWidth: usize = 0;
+    const sign: usize = 1;
     if (maxCharLength > maxWidth) {
-        maxWidth = maxCharLength;
+        maxWidth = maxCharLength + sign;
     } else {
-        maxWidth = minCharLength;
+        maxWidth = minCharLength + sign;
     }
 
     // axis and labels
@@ -175,16 +176,33 @@ pub fn PlotGraph(allocator: std.mem.Allocator, data: [][]f64, configs: options.c
             magnitude = @as(f64, y);
         }
 
-        // const maxLen = 6;
-        // var buf: [maxLen]u8 = undefined;
-        // buf = try allocator.alloc(u8, maxLen);
-        // const label = try std.fmt.bufPrint(&buf, "{d:.[1]}", .{ magnitude, precision });
-        //std.debug.print("{d:.[1]}\n", .{ 3.1415, 2 });
+        var buf: []u8 = undefined;
+        buf = try allocator.alloc(u8, maxWidth + precision + 1 + 1);
+
+        var label: []u8 = undefined;
+        label = try std.fmt.bufPrint(buf, "{d:.[1]}", .{ magnitude, precision });
+        if (magnitude < 0) {
+            label = try std.fmt.bufPrint(buf, "{d:.[1]}", .{ magnitude, precision });
+        }
+
+        if (label.len < maxWidth) {
+            var diff = maxWidth - label.len;
+            if (magnitude < 0) {
+                diff = maxWidth - label.len;
+            }
+
+            var emptySpace: []u8 = undefined;
+            emptySpace = try allocator.alloc(u8, diff);
+            @memset(emptySpace, ' ');
+
+            buf = try allocator.alloc(u8, maxWidth);
+            label = try std.fmt.bufPrint(buf, "{0s}{1d:.[2]}", .{ emptySpace, magnitude, precision });
+        }
 
         const w = @as(usize, @intFromFloat(y - min2));
-        // const h = @as(usize, @min((label.len - default.offset), 0));
-        // plot[w][h].color = default.labelColor;
-        // plot[w][h].text = label;
+        const h = @as(usize, @min((label.len - default.offset), 0));
+        plot[w][h].color = default.labelColor;
+        plot[w][h].text = label;
 
         plot[w][default.offset - 1].text = "┤";
         plot[w][default.offset - 1].color = default.axisColor;
@@ -272,6 +290,8 @@ pub fn PlotGraph(allocator: std.mem.Allocator, data: [][]f64, configs: options.c
         }
     }
 
+    try out.writeAll(EscapeSequence.reset);
+
     var graphIndex: i8 = 0;
     for (plot) |cells| {
         var lastCharIndex: usize = 0;
@@ -290,29 +310,30 @@ pub fn PlotGraph(allocator: std.mem.Allocator, data: [][]f64, configs: options.c
                 c = value.color;
             }
 
-            std.debug.print("\x1b[38;5;{d}m{s}", .{ value.color.color, value.text });
+            try out.print("\x1b[38;5;{d}m{s}", .{ value.color.color, value.text });
         }
 
         if (std.meta.eql(c, colors.Default) == true) {
-            std.debug.print("\n", .{});
+            try out.print("\n", .{});
         }
 
         graphIndex += 1;
     }
 
-    std.debug.print("\n", .{});
+    try out.print("\n", .{});
 
     // Add caption
     if (std.mem.eql(u8, default.caption, "") == false) {
-        std.debug.print("\x1b[38;5;{d}m{s}", .{ default.captionColor.color, default.caption });
+        try out.print("\x1b[38;5;{d}m{s}", .{ default.captionColor.color, default.caption });
     }
 
     // Add legends
-    if (configs.legends.len > 0) {
-        const midway: usize = (configs.columns / 2) - configs.legends.len / 2;
-        for (0..midway) |_| {
-            std.debug.print(" ", .{});
-        }
-        std.debug.print("\x1b[38;5;{d}m{s}", .{ configs.legendColor.color, configs.legends });
+    if (default.legends.len > 0) {
+        const midway: usize = (default.columns / 2) - default.legends.len / 2;
+        try out.splatByteAll(' ', midway);
+        try out.print("\x1b[38;5;{d}m{s}", .{ default.legendColor.color, default.legends });
     }
+
+    try out.writeAll("\n");
+    // try stdout.flush();
 }
