@@ -319,7 +319,6 @@ pub fn PlotGraph(allocator: std.mem.Allocator, out: *std.Io.Writer, data: [][]f6
 
         graphIndex += 1;
     }
-
     try out.print("\n", .{});
 
     // Add caption
@@ -334,6 +333,6 @@ pub fn PlotGraph(allocator: std.mem.Allocator, out: *std.Io.Writer, data: [][]f6
         try out.print("\x1b[38;5;{d}m{s}", .{ default.legendColor.color, default.legends });
     }
 
-    try out.writeAll("\n");
+    try out.flush();
     // try stdout.flush();
 }

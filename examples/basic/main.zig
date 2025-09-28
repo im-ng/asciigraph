@@ -3,6 +3,10 @@ const asciigraph = @import("asciigraph");
 const configs = asciigraph.options;
 const colors = asciigraph.colors;
 
+var stdout_buffer: [1024]u8 = undefined;
+var stdout_writer = std.fs.File.stdout().writer(&stdout_buffer);
+const stdout = &stdout_writer.interface;
+
 pub fn fillPoints(map: []const []f64, points: []f64) void {
     for (map) |row| {
         for (0..row.len) |index| {
@@ -18,7 +22,7 @@ pub fn main() !void {
     const c = configs.config{
         .rows = 1,
         .columns = 50,
-        .height = 5,
+        .height = 10,
         .offset = 0,
         .legendColor = colors.Yellow,
         .legends = "X Axis",
@@ -28,5 +32,5 @@ pub fn main() !void {
     const matrix = try asciigraph.prepareMatrix(c.rows, c.columns, allocator);
     asciigraph.fillRandom(matrix);
 
-    try asciigraph.PlotGraph(allocator, matrix, c);
+    try asciigraph.PlotGraph(allocator, stdout, matrix, c);
 }

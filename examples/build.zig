@@ -12,6 +12,7 @@ pub fn build(b: *std.Build) void {
     }{
         .{ .name = "basic", .src = "basic/main.zig" },
         .{ .name = "sine", .src = "sine/main.zig" },
+        .{ .name = "stream", .src = "stream/main.zig" },
     }) |execfg| {
         const exe_name = execfg.name;
 

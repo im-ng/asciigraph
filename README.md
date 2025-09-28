@@ -63,6 +63,7 @@ This repository contains a number of ready-to-run examples demonstrates the use 
 
 - [x] Basic
 - [x] Sine Wave 
+- [x] Stream - Real time data
 - [ ] Rainbow
 
 ```
@@ -76,7 +77,13 @@ Run one of the sample use command `zig build {sample_name}` from examples folder
 ```
 zig build basic
 zig build sine
+zig build stream
 ```
+
+## Real time plot
+
+![Real-time](./docs/ascii-graph.png)
+
 
 ## Todos
 

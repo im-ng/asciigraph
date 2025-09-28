@@ -30,7 +30,7 @@ pub const AnsiColor = struct {
     }
 };
 
-pub const Default: AnsiColor = .{ .color = 0 };
+pub const Default: AnsiColor = .{ .color = 15 };
 pub const AliceBlue: AnsiColor = .{ .color = 255 };
 pub const AntiqueWhite: AnsiColor = .{ .color = 255 };
 pub const Aqua: AnsiColor = .{ .color = 14 };

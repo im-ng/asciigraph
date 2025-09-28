@@ -3,6 +3,10 @@ const asciigraph = @import("asciigraph");
 const configs = asciigraph.options;
 const colors = asciigraph.colors;
 
+var stdout_buffer: [1024]u8 = undefined;
+var stdout_writer = std.fs.File.stdout().writer(&stdout_buffer);
+const stdout = &stdout_writer.interface;
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
@@ -20,5 +24,5 @@ pub fn main() !void {
     const m = try asciigraph.prepareMatrix(c.rows, c.columns, allocator);
     asciigraph.fillPoints(m);
 
-    try asciigraph.PlotGraph(allocator, m, c);
+    try asciigraph.PlotGraph(allocator, stdout, m, c);
 }
