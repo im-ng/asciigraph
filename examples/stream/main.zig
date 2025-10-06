@@ -57,6 +57,8 @@ pub fn main() !void {
         .caption = "Y Axis",
     };
 
+    const graph = try asciigraph.init(.{ .allocator = arena, .out = stdout, .config = c });
+
     array = try fillStartPoints(arena, c.columns);
 
     window = try arena.alloc([]f64, array.len);
@@ -75,7 +77,7 @@ pub fn main() !void {
         };
 
         window = try slidePoints(arena, window[0][0..], point);
-        try asciigraph.PlotGraph(arena, stdout, window, c);
+        try graph.PlotGraph(window);
     } else |err| {
         switch (err) {
             error.EndOfStream => {

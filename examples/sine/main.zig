@@ -21,8 +21,10 @@ pub fn main() !void {
         .caption = "Y Axis",
     };
 
-    const m = try asciigraph.prepareMatrix(c.rows, c.columns, allocator);
+    const graph = try asciigraph.init(.{ .allocator = allocator, .out = stdout, .config = c });
+
+    const m = try graph.prepareMatrix(c.rows, c.columns);
     asciigraph.fillPoints(m);
 
-    try asciigraph.PlotGraph(allocator, stdout, m, c);
+    try graph.PlotGraph(m);
 }

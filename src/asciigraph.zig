@@ -1,10 +1,17 @@
 const std = @import("std");
+pub const asciigraph = @This();
+const Self = @This();
+
 pub const options = @import("options.zig");
 pub const colors = @import("ansiColor.zig");
 pub const util = @import("utils.zig");
 
 const math = @import("std").math;
 pub const ColorStruct = colors.AnsiColor;
+
+allocator: std.mem.Allocator,
+config: options.config,
+out: *std.Io.Writer,
 
 const EscapeSequence = struct {
     const reset = "\x1B[2J\x1B[H\x1B[?25l";
@@ -21,11 +28,11 @@ const cell = struct {
     }
 };
 
-pub fn prepareCellMatrix(x: u8, y: u8, allocator: std.mem.Allocator) ![][]cell {
+pub fn prepareCellMatrix(self: *Self, x: u8, y: u8) ![][]cell {
     var cells: [][]cell = undefined;
-    cells = try allocator.alloc([]cell, x);
+    cells = try self.allocator.alloc([]cell, x);
     for (cells) |*row| {
-        row.* = try allocator.alloc(cell, y);
+        row.* = try self.*.allocator.alloc(cell, y);
         for (row.*, 0..) |_, i| {
             row.*[i] = .{ .text = " ", .color = colors.Default };
         }
@@ -34,11 +41,11 @@ pub fn prepareCellMatrix(x: u8, y: u8, allocator: std.mem.Allocator) ![][]cell {
     return cells;
 }
 
-pub fn prepareMatrix(x: u8, y: u8, allocator: std.mem.Allocator) ![][]f64 {
+pub fn prepareMatrix(self: *Self, x: u8, y: u8) ![][]f64 {
     var matrix: [][]f64 = undefined;
-    matrix = try allocator.alloc([]f64, x);
+    matrix = try self.allocator.alloc([]f64, x);
     for (matrix) |*row| {
-        row.* = try allocator.alloc(f64, y);
+        row.* = try self.allocator.alloc(f64, y);
         for (row.*, 0..) |_, i| {
             row.*[i] = 0;
         }
@@ -69,13 +76,26 @@ pub fn prepareSineWave(index: usize) f64 {
     return (15 * (std.math.sin(_index * ((std.math.pi * 4) / 120.0))));
 }
 
-pub fn PlotGraph(allocator: std.mem.Allocator, out: *std.Io.Writer, data: [][]f64, configs: options.config) !void {
+pub fn init(self: Self) !*asciigraph {
+    const graph = try self.allocator.create(asciigraph);
+    errdefer self.allocator.destroy(graph);
+
+    graph.* = .{
+        .allocator = self.allocator,
+        .out = self.out,
+        .config = self.config,
+    };
+
+    return graph;
+}
+
+pub fn PlotGraph(self: *Self, data: [][]f64) !void {
     var logMaximum: f64 = undefined;
-    var default = configs;
+    var default = self.config;
 
     // Deep copy?
     var lenMax: usize = 0;
-    var dataCopy: [][]f64 = try prepareMatrix(configs.rows, configs.columns, allocator);
+    var dataCopy: [][]f64 = try self.prepareMatrix(self.*.config.rows, self.config.columns);
     for (data, 0..) |_, i| {
         const row = data[i];
         if (row.len > lenMax) {
@@ -128,7 +148,10 @@ pub fn PlotGraph(allocator: std.mem.Allocator, out: *std.Io.Writer, data: [][]f6
     const _row: u8 = @abs(intmax2 - intmin2) + 1;
     const _width: u8 = @intCast((lenMax + default.offset));
 
-    var plot: [][]cell = try prepareCellMatrix(_row, _width, allocator);
+    var plot: [][]cell = try self.prepareCellMatrix(
+        _row,
+        _width,
+    );
     var precision: usize = default.precision;
 
     //Add Max(float64, float64)
@@ -150,7 +173,7 @@ pub fn PlotGraph(allocator: std.mem.Allocator, out: *std.Io.Writer, data: [][]f6
 
     // defaults
     var charBuf: []u8 = undefined;
-    charBuf = try allocator.alloc(u8, 50);
+    charBuf = try self.*.allocator.alloc(u8, 50);
     const charMax = try std.fmt.bufPrint(charBuf, "{d:.[1]}", .{ maximum, precision });
     const charMin = try std.fmt.bufPrint(charBuf, "{d:.[1]}", .{ minimum, precision });
 
@@ -177,7 +200,7 @@ pub fn PlotGraph(allocator: std.mem.Allocator, out: *std.Io.Writer, data: [][]f6
         }
 
         var buf: []u8 = undefined;
-        buf = try allocator.alloc(u8, maxWidth + precision + 1 + 1);
+        buf = try self.allocator.alloc(u8, maxWidth + precision + 1 + 1);
 
         var label: []u8 = undefined;
         label = try std.fmt.bufPrint(buf, "{d:.[1]}", .{ magnitude, precision });
@@ -192,10 +215,10 @@ pub fn PlotGraph(allocator: std.mem.Allocator, out: *std.Io.Writer, data: [][]f6
             }
 
             var emptySpace: []u8 = undefined;
-            emptySpace = try allocator.alloc(u8, diff);
+            emptySpace = try self.*.allocator.alloc(u8, diff);
             @memset(emptySpace, ' ');
 
-            buf = try allocator.alloc(u8, maxWidth);
+            buf = try self.*.allocator.alloc(u8, maxWidth);
             label = try std.fmt.bufPrint(buf, "{0s}{1d:.[2]}", .{ emptySpace, magnitude, precision });
         }
 
@@ -240,7 +263,7 @@ pub fn PlotGraph(allocator: std.mem.Allocator, out: *std.Io.Writer, data: [][]f6
                 const xDash = rowSize - y0;
                 const yDash = default.offset + x;
                 plot[xDash][yDash].text = "╴";
-                plot[xDash][yDash].color = configs.legendColor;
+                plot[xDash][yDash].color = self.config.legendColor;
                 continue;
             }
 
@@ -250,7 +273,7 @@ pub fn PlotGraph(allocator: std.mem.Allocator, out: *std.Io.Writer, data: [][]f6
                 const xDash = rowSize - y1;
                 const yDash = default.offset + x;
                 plot[xDash][yDash].text = "╶";
-                plot[xDash][yDash].color = configs.legendColor;
+                plot[xDash][yDash].color = self.config.legendColor;
                 continue;
             }
 
@@ -285,12 +308,12 @@ pub fn PlotGraph(allocator: std.mem.Allocator, out: *std.Io.Writer, data: [][]f6
             const end = @as(u64, @max(y0, y1));
             var k = start;
             while (k < end) : (k += 1) {
-                plot[rowSize - k][x + default.offset].color = configs.legendColor;
+                plot[rowSize - k][x + default.offset].color = self.config.legendColor;
             }
         }
     }
 
-    try out.writeAll(EscapeSequence.reset);
+    try self.out.writeAll(EscapeSequence.reset);
 
     var graphIndex: i8 = 0;
     for (plot) |cells| {
@@ -310,29 +333,29 @@ pub fn PlotGraph(allocator: std.mem.Allocator, out: *std.Io.Writer, data: [][]f6
                 c = value.color;
             }
 
-            try out.print("\x1b[38;5;{d}m{s}", .{ value.color.color, value.text });
+            try self.*.out.print("\x1b[38;5;{d}m{s}", .{ value.color.color, value.text });
         }
 
         if (std.meta.eql(c, colors.Default) == true) {
-            try out.print("\n", .{});
+            try self.*.out.print("\n", .{});
         }
 
         graphIndex += 1;
     }
-    try out.print("\n", .{});
+    try self.out.print("\n", .{});
 
     // Add caption
     if (std.mem.eql(u8, default.caption, "") == false) {
-        try out.print("\x1b[38;5;{d}m{s}", .{ default.captionColor.color, default.caption });
+        try self.out.print("\x1b[38;5;{d}m{s}", .{ default.captionColor.color, default.caption });
     }
 
     // Add legends
     if (default.legends.len > 0) {
         const midway: usize = (default.columns / 2) - default.legends.len / 2;
-        try out.splatByteAll(' ', midway);
-        try out.print("\x1b[38;5;{d}m{s}", .{ default.legendColor.color, default.legends });
+        try self.out.splatByteAll(' ', midway);
+        try self.out.print("\x1b[38;5;{d}m{s}", .{ default.legendColor.color, default.legends });
     }
 
-    try out.flush();
+    try self.out.flush();
     // try stdout.flush();
 }

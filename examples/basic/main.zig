@@ -29,8 +29,10 @@ pub fn main() !void {
         .caption = "Y Axis",
     };
 
-    const matrix = try asciigraph.prepareMatrix(c.rows, c.columns, allocator);
+    const graph = try asciigraph.init(.{ .allocator = allocator, .out = stdout, .config = c });
+
+    const matrix = try graph.prepareMatrix(c.rows, c.columns);
     asciigraph.fillRandom(matrix);
 
-    try asciigraph.PlotGraph(allocator, stdout, matrix, c);
+    try graph.PlotGraph(matrix);
 }
