@@ -77,7 +77,7 @@ Run one of the sample use command `zig build {sample_name}` from examples folder
 ```
 zig build basic
 zig build sine
-zig build stream
+ping -i1 google.com | grep -oP "time=\K\d+\.?\d*" --line-buffered | zig build stream
 ```
 
 ## Real time plot
